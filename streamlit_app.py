@@ -87,7 +87,7 @@ def extract_data_from_zip(zip_file):
                 data = json.load(file)
                 ptmscore = float(data['ptm'])
                 st.write(f"PTM Score: {ptmscore}")
-                break
+                #break
 
         if long_path.endswith("_model_0.cif"):
             file_parser = MMCIFParser(QUIET=True)
