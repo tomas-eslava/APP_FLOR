@@ -86,8 +86,9 @@ def extract_data_from_zip(zip_file):
             with open(long_path, 'r') as file:
                 data = json.load(file)
                 ptmscore = float(data['ptm'])
-                st.write(f"PTM Score: {ptmscore}")
-                #break
+
+    for path in os.listdir('temp_folder'):
+        long_path = os.path.join('temp_folder', path)
 
         if long_path.endswith("_model_0.cif"):
             file_parser = MMCIFParser(QUIET=True)
@@ -102,8 +103,7 @@ def extract_data_from_zip(zip_file):
             # Leer el contenido del archivo temporal en memoria
             with open(pdb_temp_file, 'r') as file:
                 pdb_content = file.read()
-            break
-
+            
     return pdb_content, ptmscore
 
 
@@ -137,7 +137,7 @@ st.set_page_config(
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-st.write("Buen Día")
+st.write("Buen Día :)")
 
 
 
@@ -151,7 +151,7 @@ if uploaded_file is not None:
     
     # Extraer ptmscore
     pdb_content, ptmscore = extract_data_from_zip(uploaded_file)
-
+    st.write(ptmscore)
     # Generar y visualizar el archivo PDB
     
     if pdb_content:
