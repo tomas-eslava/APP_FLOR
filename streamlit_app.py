@@ -72,7 +72,8 @@ import py3Dmol
 #--------------------------------------------------------------------------------------------------------------
 
 def extract_data_from_zip(zip_file):
-    
+
+
     pdb_content = None  # Para almacenar el contenido PDB
     ptmscore = None
 
@@ -103,8 +104,19 @@ def extract_data_from_zip(zip_file):
             # Leer el contenido del archivo temporal en memoria
             with open(pdb_temp_file, 'r') as file:
                 pdb_content = file.read()
+
+    
+    
+    for path in os.listdir('temp_folder'):
+        long_path = os.path.join('temp_folder', path)        
+        
+        if long_path.endswith("_full_data_0.json"):
+            with open(long_path, 'r') as file:
+                data = json.load(file)
+                Pae_distance = pd.DataFrame(data['pae'])
+                
             
-    return pdb_content, ptmscore
+    return pdb_content, Pae_distance, ptmscore
 
 
 # Función para visualizar el archivo PDB en 3D
@@ -116,6 +128,54 @@ def visualize_pdb_3d(pdb_content):
     #view_3d.show()
     return view_3d
 
+def GET_PAE_GRAPH(df_pae):
+    fig_pae = go.Figure(data=go.Heatmap(
+                    z=df_pae, 
+                    colorscale="Rainbow"))
+    # Obtener la cantidad de filas y columnas del dataframe
+    # num_rows, num_cols = df_pae.shape
+    
+    # Ajustar el layout para hacer el heatmap cuadrado
+    fig_pae.update_layout(
+        width=500,  # Establecer el ancho deseado
+        height=500,  # Establecer la altura deseada
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        xaxis=dict(constrain='domain')
+        
+    )
+    return fig_pae
+
+def get_pdb_ca_from_content(pdb_content):
+    Atom_serial_number = []
+    Atom_name = []
+    Residue_Name = []
+    X_orthogonal_coordinates = []
+    Y_orthogonal_coordinates = []
+    Z_orthogonal_coordinates = []
+    B_factor = [] 
+
+    for linea in pdb_content.splitlines():
+        if linea.startswith('ATOM') and linea[13:15].strip() == 'CA':
+            Atom_serial_number.append(float(linea[6:11].strip()))
+            Atom_name.append(linea[13:16].strip())  # Strip elimina los espacios en blanco en el string
+            Residue_Name.append(linea[17:20].strip())
+            X_orthogonal_coordinates.append(float(linea[30:38].strip()))
+            Y_orthogonal_coordinates.append(float(linea[38:46].strip()))
+            Z_orthogonal_coordinates.append(float(linea[46:54].strip()))
+            B_factor.append(float(linea[60:66].strip()))
+
+    # DATAFRAME CON LOS VALORES DEL PDB- CA
+    df_pdb = pd.DataFrame({
+        'Atom Serial Number': Atom_serial_number,
+        'Atom Name': Atom_name,
+        'Residue Name': Residue_Name,
+        'X orthogonal coordinate': X_orthogonal_coordinates,
+        'Y orthogonal coordinate': Y_orthogonal_coordinates,
+        'Z orthogonal coordinate': Z_orthogonal_coordinates,
+        'B factor': B_factor
+    })
+
+    return df_pdb
 
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -135,29 +195,57 @@ st.set_page_config(
     }
 )
 
+#   FUNCION GET_PLDDTS
+#Parametros
+    #pdb1 = dataframe con el primer pdb
+    #ref_1 = string con referencia al pdf anterior
+    #pdb2 = dataframe con el segundo pdb
+    #ref_2 = string con referencia al pdf anterior
+#Return
+    #fig_plddt
+
+def GET_PLDDTS(pdb_1):
+    fig_plddt = go.Figure()
+    fig_plddt.add_trace(go.Scatter( x=pdb_1.index,
+                                    y=pdb_1["B factor"],
+                                    line=dict(color='#40e0d0')))
+
+    return fig_plddt
+
+
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 st.write("Buen Día :)")
 
 
-
-
-
-# Subida del archivo .zip
+# objeto para subir el archivo .zp
 uploaded_file = st.file_uploader("Sube un archivo .zip de AlphaFold 3", type="zip")
 
 if uploaded_file is not None:
-    st.write("Procesando el archivo...")
+       
+    # Extraer datos
+    pdb_content, pae, ptmscore = extract_data_from_zip(uploaded_file)
     
-    # Extraer ptmscore
-    pdb_content, ptmscore = extract_data_from_zip(uploaded_file)
-    st.write(ptmscore)
-    # Generar y visualizar el archivo PDB
+    st.write('PTM Score: ', ptmscore)
     
+    st.write("PAE's Dataframe")
+    st.dataframe(pae)
+
+    fig_pae = GET_PAE_GRAPH(pae)
+    st.write('PAE´s Heatmap:')
+    st.plotly_chart(fig_pae)
+
     if pdb_content:
         st.write("Visualizando la estructura 3D del modelo PDB:")
         view_3d = visualize_pdb_3d(pdb_content)
         st.components.v1.html(view_3d._make_html(), height=500, width=800)
+
+        st.write('PDB Dataframe')
+        df_pdb = get_pdb_ca_from_content(pdb_content)
+        st.write(df_pdb)
+        st.write('PLDDT')
+        fig_plddt = GET_PLDDTS(df_pdb)
+        st.plotly_chart(fig_plddt)
     else:
         st.write("No se encontró un archivo _model_0.cif en el zip.")
 
